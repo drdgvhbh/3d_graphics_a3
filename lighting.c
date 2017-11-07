@@ -109,9 +109,11 @@ Texture(Material *material, Point position)
 /*
  * a simple shader
  */
-static Color
-ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
-{
+static Color ComputeRadiance(
+		Ray *ray, 
+		double t, 
+		Vector normal, 
+		Material material) {
 	(void) Normalize(&normal);
 	
 	/* your code goes here */
