@@ -29,3 +29,5 @@ extern char *art_Sphere(void);
 extern char *art_Cube(void);
 extern char *art_Plane(void);
 extern char *art_Cone(void);
+
+extern double Normalize(Vector *);
