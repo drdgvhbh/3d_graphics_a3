@@ -140,7 +140,14 @@ char * art_Scale(double sx, double sy, double sz) {
 		0.0, 0.0, sz, 0.0,
 		0.0, 0.0, 0.0, 1.0
 	};
+	Matrix iScale = {
+		1.0 / sx, 0.0, 0.0, 0.0,
+		0.0, 1.0 /sy, 0.0, 0.0,
+		0.0, 0.0, 1.0 / sz, 0.0,
+		0.0, 0.0, 0.0, 1.0
+	};
 	CTM.TM = MultMatrix(&scale, &CTM.TM);
+	CTM.inverseTM = MultMatrix(&iScale, &CTM.inverseTM);
 	/* your code goes here */
 	return NULL;
 }
@@ -148,24 +155,38 @@ char * art_Scale(double sx, double sy, double sz) {
 
 char * art_Rotate(char axis, double degrees) {
 	Matrix rotate = identity;
+	Matrix iRotate = identity;
 	switch (axis) {
 		case 'x':
 			rotate.m[1][1] = cos(ToRadians(degrees));
 			rotate.m[1][2] = -sin(ToRadians(degrees));
 			rotate.m[2][1] = sin(ToRadians(degrees));
 			rotate.m[2][2] = cos(ToRadians(degrees));
+			iRotate.m[1][1] = acos(ToRadians(degrees));
+			iRotate.m[1][2] = -asin(ToRadians(degrees));
+			iRotate.m[2][1] = asin(ToRadians(degrees));
+			iRotate.m[2][2] = acos(ToRadians(degrees));
 		case 'y':
 			rotate.m[0][0] = cos(ToRadians(degrees));
 			rotate.m[0][2] = sin(ToRadians(degrees));
 			rotate.m[2][0] = -sin(ToRadians(degrees));
 			rotate.m[2][2] = cos(ToRadians(degrees));
+			iRotate.m[0][0] = acos(ToRadians(degrees));
+			iRotate.m[0][2] = asin(ToRadians(degrees));
+			iRotate.m[2][0] = -asin(ToRadians(degrees));
+			iRotate.m[2][2] = acos(ToRadians(degrees));
 		case 'z':
 			rotate.m[0][0] = cos(ToRadians(degrees));
 			rotate.m[0][1] = -sin(ToRadians(degrees));
 			rotate.m[1][0] = sin(ToRadians(degrees));
 			rotate.m[1][1] = cos(ToRadians(degrees));
+			iRotate.m[0][0] = acos(ToRadians(degrees));
+			iRotate.m[0][1] = -asin(ToRadians(degrees));
+			iRotate.m[1][0] = asin(ToRadians(degrees));
+			iRotate.m[1][1] = acos(ToRadians(degrees));
 	}
 	CTM.TM = MultMatrix(&rotate, &CTM.TM);
+	CTM.inverseTM = MultMatrix(&iRotate, &CTM.inverseTM);
 	/* your code goes here */
 	return NULL;
 }
@@ -178,7 +199,14 @@ char * art_Translate(double tx, double ty, double tz) {
 		0.0, 0.0, 1.0, tz,
 		0.0, 0.0, 0.0, 1.0
 	};
+	Matrix iTranslate = { 
+		1.0, 0.0, 0.0, -tx,
+		0.0, 1.0, 0.0, -ty,
+		0.0, 0.0, 1.0, -tz,
+		0.0, 0.0, 0.0, 1.0
+	};
 	CTM.TM = MultMatrix(&translate, &CTM.TM);
+	CTM.inverseTM = MultMatrix(&iTranslate, &CTM.inverseTM);
 	/* your code goes here */
 	return NULL;
 }
@@ -186,26 +214,34 @@ char * art_Translate(double tx, double ty, double tz) {
 
 char * art_Shear(char axis1, char axis2, double shear) {
 	Matrix matShear = identity;
+	Matrix iMatShear = identity;
 
 	if (axis1 == 'x' && axis2 == 'y') {
 		matShear.m[0][1] = shear;
+		iMatShear.m[0][1] = -shear;
 	}
 	if (axis1 == 'x' && axis2 == 'z') {
 		matShear.m[0][2] = shear;
+		iMatShear.m[0][2] = -shear;
 	}
 	if (axis1 == 'y' && axis2 == 'x') {
 		matShear.m[1][0] = shear;
+		iMatShear.m[0][2] = -shear;
 	}
 	if (axis1 == 'y' && axis2 == 'z') {
 		matShear.m[1][2] = shear;
+		iMatShear.m[0][2] = -shear;
 	}
 	if (axis1 == 'z' && axis2 == 'x') {
 		matShear.m[2][0] = shear;
+		iMatShear.m[0][2] = -shear;
 	}
 	if (axis1 == 'z' && axis2 == 'y') {
 		matShear.m[2][1] = shear;
+		iMatShear.m[0][2] = -shear;
 	}
 	CTM.TM = MultMatrix(&matShear, &CTM.TM);
+	CTM.inverseTM = MultMatrix(&iMatShear, &CTM.inverseTM);
 	/* your code goes here */
 	return NULL;
 }

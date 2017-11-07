@@ -5,5 +5,5 @@ Thumbs.db
 /.vs
 /.vscode
 
-*.
-
+*.o
+*.tiff
