@@ -1,5 +1,5 @@
 material 1 0 0  .2 .6 .7 50
-translate -3 0 0
+scale 1.0 1.0 1.0
 sphere
 
 light 5 10 5 100

@@ -115,10 +115,18 @@ static Color ComputeRadiance(
 		Vector normal, 
 		Material material) {
 	(void) Normalize(&normal);
-	
+
+	double cosTheta = (DOT(ray->direction, normal));
+	Vector reflected = ReflectRay(ray->direction, normal);
+	double components = material.Ka + material.Kd * cosTheta;
+	Color color = material.col;
+	for (int i = 0; i < 3; i++) {
+		color.v[i] *= components;
+	}
+	return color;
 	/* your code goes here */
 	
-	return material.col; /* replace with your code */
+	// return material.col; /* replace with your code */
 }
 
 
