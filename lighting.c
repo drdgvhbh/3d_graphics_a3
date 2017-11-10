@@ -116,12 +116,44 @@ static Color ComputeRadiance(
 		Material material) {
 	(void) Normalize(&normal);
 
-	double cosTheta = (DOT(ray->direction, normal));
-	Vector reflected = ReflectRay(ray->direction, normal);
-	double components = material.Ka + material.Kd * cosTheta;
+	LightNode* light = lights;
+	Vector POI = ray->origin;
+	for (int i = 0; i < 3; i++) {
+		POI.v[i] += ray->direction.v[i] * t;
+	}
+	double intensity = 0;
+	double sIntensity = 0;
+	while (light != NULL) {
+		Vector rayDir = light->position;
+		for (int i = 0; i < 3; i++) {
+			rayDir.v[i] -= POI.v[i];
+		}
+		Normalize(&rayDir);
+
+
+		double nLightIntensity = light->intensity / 100.0;
+		intensity += nLightIntensity * material.Ka;
+		double cosTheta = DOT(rayDir, normal);
+		if (cosTheta >= 0) {
+			intensity += nLightIntensity * material.Kd * cosTheta;
+		}
+
+		Vector originDir = ray->direction;
+		for (int i = 0; i < 3; i++) {
+			originDir.v[i] *= -1;
+			rayDir.v[i] *= -1;
+		}
+		Vector reflected = ReflectRay(rayDir, normal);
+		double cosAlpha = DOT(reflected, originDir);
+		if (cosAlpha >= 0) {
+			sIntensity += nLightIntensity * material.Ks * pow(cosAlpha, material.n);
+		}
+		light = light->next;
+	}
+
 	Color color = material.col;
 	for (int i = 0; i < 3; i++) {
-		color.v[i] *= components;
+		color.v[i] = color.v[i] * intensity + sIntensity;
 	}
 	return color;
 	/* your code goes here */
