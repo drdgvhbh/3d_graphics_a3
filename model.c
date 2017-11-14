@@ -18,7 +18,7 @@ extern int	IntersectCone(Ray *, double *, Vector *);
 extern Point	InvTransPoint(Point, Affine *);
 extern Vector	InvTransVector(Vector, Affine *), TransNormal(Vector, Affine *);
 extern Matrix	MultMatrix(Matrix *, Matrix *);
-extern double	ToRadians(int degrees);
+extern double	ToRadians(double degrees);
 extern void	InitCamera(void), InitLighting(void), FinishLighting(void);
 
 
@@ -156,35 +156,37 @@ char * art_Scale(double sx, double sy, double sz) {
 char * art_Rotate(char axis, double degrees) {
 	Matrix rotate = identity;
 	Matrix iRotate = identity;
+	double radians = ToRadians(degrees);
 	switch (axis) {
 		case 'x':
-			rotate.m[1][1] = cos(ToRadians(degrees));
-			rotate.m[1][2] = -sin(ToRadians(degrees));
-			rotate.m[2][1] = sin(ToRadians(degrees));
-			rotate.m[2][2] = cos(ToRadians(degrees));
-			iRotate.m[1][1] = acos(ToRadians(degrees));
-			iRotate.m[1][2] = -asin(ToRadians(degrees));
-			iRotate.m[2][1] = asin(ToRadians(degrees));
-			iRotate.m[2][2] = acos(ToRadians(degrees));
+			rotate.m[1][1] = cos(radians);
+			rotate.m[1][2] = -sin(radians);
+			rotate.m[2][1] = sin(radians);
+			rotate.m[2][2] = cos(radians);
+			iRotate.m[1][1] = cos(radians);
+			iRotate.m[1][2] = sin(radians);
+			iRotate.m[2][1] = -sin(radians);
+			iRotate.m[2][2] = cos(radians);
 		case 'y':
-			rotate.m[0][0] = cos(ToRadians(degrees));
-			rotate.m[0][2] = sin(ToRadians(degrees));
-			rotate.m[2][0] = -sin(ToRadians(degrees));
-			rotate.m[2][2] = cos(ToRadians(degrees));
-			iRotate.m[0][0] = acos(ToRadians(degrees));
-			iRotate.m[0][2] = asin(ToRadians(degrees));
-			iRotate.m[2][0] = -asin(ToRadians(degrees));
-			iRotate.m[2][2] = acos(ToRadians(degrees));
+			rotate.m[0][0] = cos(radians);
+			rotate.m[0][2] = sin(radians);
+			rotate.m[2][0] = -sin(radians);
+			rotate.m[2][2] = cos(radians);
+			iRotate.m[0][0] = cos(radians);
+			iRotate.m[0][2] = -sin(radians);
+			iRotate.m[2][0] = sin(radians);
+			iRotate.m[2][2] = cos(radians);
 		case 'z':
-			rotate.m[0][0] = cos(ToRadians(degrees));
-			rotate.m[0][1] = -sin(ToRadians(degrees));
-			rotate.m[1][0] = sin(ToRadians(degrees));
-			rotate.m[1][1] = cos(ToRadians(degrees));
-			iRotate.m[0][0] = acos(ToRadians(degrees));
-			iRotate.m[0][1] = -asin(ToRadians(degrees));
-			iRotate.m[1][0] = asin(ToRadians(degrees));
-			iRotate.m[1][1] = acos(ToRadians(degrees));
+			rotate.m[0][0] = cos(radians);
+			rotate.m[0][1] = -sin(radians);
+			rotate.m[1][0] = sin(radians);
+			rotate.m[1][1] = cos(radians);
+			iRotate.m[0][0] = cos(radians);
+			iRotate.m[0][1] = sin(radians);
+			iRotate.m[1][0] = -sin(radians);
+			iRotate.m[1][1] = cos(radians);
 	}
+
 	CTM.TM = MultMatrix(&rotate, &CTM.TM);
 	CTM.inverseTM = MultMatrix(&iRotate, &CTM.inverseTM);
 	/* your code goes here */
@@ -193,7 +195,7 @@ char * art_Rotate(char axis, double degrees) {
 
 
 char * art_Translate(double tx, double ty, double tz) {
-	Matrix translate = { 
+	Matrix translate = {
 		1.0, 0.0, 0.0, tx,
 		0.0, 1.0, 0.0, ty,
 		0.0, 0.0, 1.0, tz,
