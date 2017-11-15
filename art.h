@@ -1,3 +1,8 @@
+/*
+Ryan Lee - 214240196 - drd
+Cheng Shao - 214615934 - shaoc2
+ */
+
 typedef struct {
 	double	v[3];
 } Point, Vector, Color;

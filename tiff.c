@@ -1,9 +1,8 @@
 /*
- * Functions to write RGB image file in uncompressed tiff format.
- * Only works on little-endian computer.
- *
- * John Amanatides, June 2007
+Ryan Lee - 214240196 - drd
+Cheng Shao - 214615934 - shaoc2
  */
+
 #include <stdio.h>
 
 #define LITTLE_ENDIAN		0x4949

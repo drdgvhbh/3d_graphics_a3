@@ -1,8 +1,8 @@
 /*
- * the scene data structure is created/stored/traversed here
- *
- *	John Amanatides, Oct 2017
+Ryan Lee - 214240196 - drd
+Cheng Shao - 214615934 - shaoc2
  */
+
 
 
 #include <stddef.h>
