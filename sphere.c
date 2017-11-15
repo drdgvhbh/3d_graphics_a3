@@ -1,8 +1,8 @@
 /*
- * implement ray/sphere intersection routine
- *
- *	John Amanatides, Oct 2017
+Ryan Lee - 214240196 - drd
+Cheng Shao - 214615934 - shaoc2
  */
+
 
 
 #include <math.h>

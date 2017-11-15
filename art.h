@@ -1,3 +1,8 @@
+/*
+Ryan Lee - 214240196 - drd
+Cheng Shao - 214615934 - shaoc2
+ */
+
 typedef struct {
 	double	v[3];
 } Point, Vector, Color;
@@ -29,3 +34,5 @@ extern char *art_Sphere(void);
 extern char *art_Cube(void);
 extern char *art_Plane(void);
 extern char *art_Cone(void);
+
+extern double Normalize(Vector *);
