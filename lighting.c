@@ -82,7 +82,7 @@ art_Background(Color color)
 /* for A4 */
 static Color
 Texture(Material *material, Point position)
-{               
+{
 	int funnySum;
 	double EPSILON= 0.0001;
 	double contribution;
@@ -90,7 +90,7 @@ Texture(Material *material, Point position)
 
 	switch(material->texture) {
 
-	case CHECKERBOARD: 
+	case CHECKERBOARD:
 		funnySum= floor(position.v[0]+EPSILON)
 			+ floor(position.v[1]+EPSILON)
 			+ floor(position.v[2]+EPSILON);
@@ -100,22 +100,22 @@ Texture(Material *material, Point position)
 	case ZONE_PLATE:
 		contribution= 0.5*cos(DOT(position, position))+0.5;
 		TIMES(result, material->col, contribution);
-		return result;  
-	default:                
+		return result;
+	default:
 	return material->col;
-	}       
-}       
+	}
+}
 
 static Vector
 reflect(Vector inc, Vector normal){
 	Vector out;
-	
+
 	double factor=DOT(inc,normal);
 	factor=factor*2;
 	Vector temp;
 	TIMES(temp,normal,factor);
 	MINUS(out,inc,temp);
-		
+
 	return 	out;
 }
 
@@ -137,13 +137,15 @@ ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
 
 	Color diffuseColor = black;
 	Color specularColor = black;
+	Material materialColor = material;
+	Color textureColor = Texture(&materialColor, intersection);
 
 	double intensity = 0;
 	while (light != NULL) {
 		Vector lightRay;
 		MINUS(lightRay, light->position, intersection);
 		double lightLength = Normalize(&lightRay);
-		
+
 		Ray ShadowRay;
 		ShadowRay.direction = lightRay;
 		ShadowRay.origin = intersection;
@@ -152,12 +154,12 @@ ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
 
 		int isInShadow = ShadowProbe(&ShadowRay, lightLength);
 		if (!isInShadow) {
-			Color currentDiffuse = black;	
-			TIMES(currentDiffuse, material.col, material.Kd);
+			Color currentDiffuse = black;
+			TIMES(currentDiffuse, textureColor, material.Kd);
 			if (DOT(normal, lightRay) > 0) {
 				TIMES(
-					currentDiffuse, 
-					currentDiffuse, 
+					currentDiffuse,
+					currentDiffuse,
 					DOT(normal, lightRay) * intensity);
 			}
 			PLUS(diffuseColor, diffuseColor, currentDiffuse);
@@ -173,20 +175,17 @@ ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
 			Color currentSpec = black;
 			TIMES(currentSpec, white, specPOW * intensity * material.Ks);
 			PLUS(specularColor, specularColor, currentSpec);
-		} 		
+		}
 		light = light->next;
 	}
 
-	Color ambientColor;	
-	TIMES(ambientColor, material.col, material.Ka * intensity);
+	Color ambientColor;
+	TIMES(ambientColor, textureColor, material.Ka * intensity);
 
-	//TIMES(diffuseColor, material.col, intensity);
-	//TIMES(specularColor,specularColor,material.Ks);
-	
-	//add them all together
 	Color fColor = black;
 	PLUS(fColor, ambientColor, diffuseColor);
 	PLUS(fColor, fColor, specularColor);
+	
 	return fColor;
 }
 
