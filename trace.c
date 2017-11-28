@@ -11,7 +11,7 @@ Cheng Shao - 214615934 - shaoc2
 #include "artInternal.h"
 
 extern	Ray ShootRay(double, double);
-extern	Color GetRadiance(Ray *);
+extern	Color GetRadiance(Ray *, double);
 extern FILE *OpenTIFF(int, int, char *);
 extern void CloseTIFF(FILE *);
 extern void WritePixelTIFF(FILE *, int, int, int);
@@ -39,7 +39,7 @@ art_Trace(int xRes, int yRes, int numSamples, char *filename)
                         u= ((double) x)/xRes;
                         v= 1.0 - ((double) y)/yRes;
                         ray= ShootRay(u, v);
-                        sample= GetRadiance(&ray);
+                        sample= GetRadiance(&ray, 1.000293);
 
 			/* convert to bytes and write out */
 			red= 255.0*pow(sample.v[0], INVERSE_GAMMA);
