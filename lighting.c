@@ -134,8 +134,9 @@ ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
 	TIMES(intersection, ray->direction, t);
 	PLUS(intersection, intersection, ray->origin);
 
-	Color diffuseColor;
-	Color specularColor = white;
+
+	Color diffuseColor = black;
+	Color specularColor = black;
 
 	double intensity = 0;
 	while (light != NULL) {
@@ -147,22 +148,32 @@ ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
 		ShadowRay.direction = lightRay;
 		ShadowRay.origin = intersection;
 
+		intensity += light->intensity / pow(lightLength - light->radius, 2);
 
 		int isInShadow = ShadowProbe(&ShadowRay, lightLength);
 		if (!isInShadow) {
-			intensity += light->intensity / pow(lightLength - light->radius, 2);
-			TIMES(diffuseColor, diffuseColor, DOT(normal, lightRay));
+			Color currentDiffuse = black;	
+			TIMES(currentDiffuse, material.col, material.Kd);
+			if (DOT(normal, lightRay) > 0) {
+				TIMES(
+					currentDiffuse, 
+					currentDiffuse, 
+					DOT(normal, lightRay) * intensity);
+			}
+			PLUS(diffuseColor, diffuseColor, currentDiffuse);
+
 			Vector reflected = ReflectRay(lightRay, normal);
-			double specDOT = DOT(ray->direction, reflected);
-			double specPOW;
+			double specDOT = DOT(reflected, ray->direction);
+			double specPOW = 0;
 			if (specDOT < 0) {
 				specPOW = 0;
 			} else {
 				specPOW = pow(specDOT, material.n);
 			}
-			TIMES(specularColor, specularColor, specPOW);
-		} 
-		
+			Color currentSpec = black;
+			TIMES(currentSpec, white, specPOW * intensity * material.Ks);
+			PLUS(specularColor, specularColor, currentSpec);
+		} 		
 		light = light->next;
 	}
 
@@ -170,16 +181,12 @@ ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
 	TIMES(ambientColor, material.col, material.Ka * intensity);
 
 	//TIMES(diffuseColor, material.col, intensity);
-	//TIMES(diffuseColor, diffuseColor, material.Kd);
-
-	//TIMES(diffuseColor, material.col, intensity);
 	//TIMES(specularColor,specularColor,material.Ks);
 	
 	//add them all together
 	Color fColor = black;
-	PLUS(fColor, fColor, ambientColor);
-	// PLUS(fColor,ambientColor,diffuseColor);
-	// PLUS(fColor,fColor,specularColor);
+	PLUS(fColor, ambientColor, diffuseColor);
+	PLUS(fColor, fColor, specularColor);
 	return fColor;
 }
 
