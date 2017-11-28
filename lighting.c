@@ -128,68 +128,58 @@ ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
 {
 	(void) Normalize(&normal);
 
-	Color fColor;	
-	Color ambientColor;	
-	Color diffuseColor;
-	Color specularColor=white;
-	// ShadowRay 
-	Ray ShadowRay;
-	Color amb;
-	
-	//compute intersection point
+	LightNode* light = lights;
+
 	Point intersection;
-	TIMES(intersection,ray->direction,t);
-	PLUS(intersection,intersection,ray->origin);
+	TIMES(intersection, ray->direction, t);
+	PLUS(intersection, intersection, ray->origin);
 
-	//computer light ray
-	Vector lightRay;
-	MINUS(lightRay,lights->position,intersection);
-	// set the direction to shoot the direction, origin
-	ShadowRay.direction = lightRay;
-	ShadowRay.origin = intersection;
-	//get length of ray 
-	double lengthLight = Normalize(&lightRay);
-	
-	int booleanS = ShadowProbe(&ShadowRay, lengthLight); 
+	Color diffuseColor;
+	Color specularColor = white;
+
+	double intensity = 0;
+	while (light != NULL) {
+		Vector lightRay;
+		MINUS(lightRay, light->position, intersection);
+		double lightLength = Normalize(&lightRay);
 		
-	//ambient color calculation
-	TIMES(ambientColor,material.col,material.Ka);
-	//intensity of diffuse light
-	double intensity=DOT(normal,lightRay);
-	if(intensity<0){
-		intensity=0;
+		Ray ShadowRay;
+		ShadowRay.direction = lightRay;
+		ShadowRay.origin = intersection;
+
+
+		int isInShadow = ShadowProbe(&ShadowRay, lightLength);
+		if (!isInShadow) {
+			intensity += light->intensity / pow(lightLength - light->radius, 2);
+			TIMES(diffuseColor, diffuseColor, DOT(normal, lightRay));
+			Vector reflected = ReflectRay(lightRay, normal);
+			double specDOT = DOT(ray->direction, reflected);
+			double specPOW;
+			if (specDOT < 0) {
+				specPOW = 0;
+			} else {
+				specPOW = pow(specDOT, material.n);
+			}
+			TIMES(specularColor, specularColor, specPOW);
+		} 
+		
+		light = light->next;
 	}
-	TIMES(diffuseColor,material.col,intensity);
-	TIMES(diffuseColor,diffuseColor,material.Kd);
 
+	Color ambientColor;	
+	TIMES(ambientColor, material.col, material.Ka * intensity);
 
-	//specular
-	Vector reflected=reflect(lightRay,normal);
-	double specDOT=DOT(ray->direction,reflected);
-	double specPOW;
-	if(specDOT<0){
-		specPOW=0;
-	}else{
-		specPOW=pow(specDOT,material.n);
-	}
+	//TIMES(diffuseColor, material.col, intensity);
+	//TIMES(diffuseColor, diffuseColor, material.Kd);
 
-
-
-	TIMES(specularColor,specularColor,specPOW);
-	TIMES(specularColor,specularColor,material.Ks);
-
+	//TIMES(diffuseColor, material.col, intensity);
+	//TIMES(specularColor,specularColor,material.Ks);
 	
 	//add them all together
-	PLUS(fColor,ambientColor,diffuseColor);
-	PLUS(fColor,fColor,specularColor);
-	amb = ambientColor;
-	//if shadow hit, return ambient component only
-	//generates the shadow
-	if(booleanS)
-	{
-		fColor = amb;
-	}
-	
+	Color fColor = black;
+	PLUS(fColor, fColor, ambientColor);
+	// PLUS(fColor,ambientColor,diffuseColor);
+	// PLUS(fColor,fColor,specularColor);
 	return fColor;
 }
 
