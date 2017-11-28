@@ -180,25 +180,32 @@ ComputeRadiance(Ray *ray, double t, Vector normal, Material material, double IOR
 	Color ambientColor;
 	TIMES(ambientColor, textureColor, material.Ka * intensity);
 
-	Ray reflectedRay = {
-		intersection,
-		ReflectRay(ray->direction, normal),
-		newGeneration
-	};
-	Color currentReflected = GetRadiance(&reflectedRay, material.index);
-	TIMES(currentReflected, currentReflected, material.Kr);
-	PLUS(reflectAndRefractedColor, reflectAndRefractedColor, currentReflected);
+	if (material.Kr > 0) {
+		/// Comment this section out and test3 works perfectly, but it shouldnt
+		/// matter since this never runs in test3. C compiler being idiotic.
+		Vector reflected =  ReflectRay(ray->direction, normal);
+		Ray reflectedRay = {
+			intersection,
+			reflected,
+			newGeneration
+		};
+		Color currentReflected = GetRadiance(&reflectedRay, material.index);
+		TIMES(currentReflected, currentReflected, material.Kr);
+		PLUS(reflectAndRefractedColor, reflectAndRefractedColor, currentReflected);
+	}
 
-	Vector transmitDir;
-	TransmitRay(ray->direction, normal, IOR, material.index, &transmitDir);
-	Ray transmittedRay = {
-		intersection,
-		transmitDir,
-		newGeneration
-	};
-	Color currentTransmitted = GetRadiance(&transmittedRay, material.index);
-	TIMES(currentTransmitted, currentTransmitted, material.Kt);
-	PLUS(reflectAndRefractedColor, reflectAndRefractedColor, currentTransmitted);
+	if (material.Kt > 0) {
+		Vector transmitDir;
+		TransmitRay(ray->direction, normal, IOR, material.index, &transmitDir);
+		Ray transmittedRay = {
+			intersection,
+			transmitDir,
+			newGeneration
+		};
+		Color currentTransmitted = GetRadiance(&transmittedRay, material.index);
+		TIMES(currentTransmitted, currentTransmitted, material.Kt);
+		PLUS(reflectAndRefractedColor, reflectAndRefractedColor, currentTransmitted);
+	}
 
 	Color fColor = black;
 	PLUS(fColor, ambientColor, diffuseColor);
