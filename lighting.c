@@ -1,8 +1,8 @@
 /*
-Ryan Lee - 214240196 - drd
-Cheng Shao - 214615934 - shaoc2
+ * deals with lights/shading functions
+ *
+ *	John Amanatides, Oct 2017
  */
-
 
 
 #include <stddef.h>
@@ -106,59 +106,91 @@ Texture(Material *material, Point position)
 	}       
 }       
 
+static Vector
+reflect(Vector inc, Vector normal){
+	Vector out;
+	
+	double factor=DOT(inc,normal);
+	factor=factor*2;
+	Vector temp;
+	TIMES(temp,normal,factor);
+	MINUS(out,inc,temp);
+		
+	return 	out;
+}
+
+
 /*
  * a simple shader
  */
-static Color ComputeRadiance(
-		Ray *ray, 
-		double t, 
-		Vector normal, 
-		Material material) {
+static Color
+ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
+{
 	(void) Normalize(&normal);
 
-	LightNode* light = lights;
-	Vector POI = ray->origin;
-	for (int i = 0; i < 3; i++) {
-		POI.v[i] += ray->direction.v[i] * t;
-	}
-	double intensity = 0;
-	double sIntensity = 0;
-	while (light != NULL) {
-		Vector rayDir = light->position;
-		for (int i = 0; i < 3; i++) {
-			rayDir.v[i] -= POI.v[i];
-		}
-		Normalize(&rayDir);
-
-
-		double nLightIntensity = light->intensity / 100.0;
-		intensity += nLightIntensity * material.Ka;
-		double cosTheta = DOT(rayDir, normal);
-		if (cosTheta >= 0) {
-			intensity += nLightIntensity * material.Kd * cosTheta;
-		}
-
-		Vector originDir = ray->direction;
-		for (int i = 0; i < 3; i++) {
-			originDir.v[i] *= -1;
-			rayDir.v[i] *= -1;
-		}
-		Vector reflected = ReflectRay(rayDir, normal);
-		double cosAlpha = DOT(reflected, originDir);
-		if (cosAlpha >= 0) {
-			sIntensity += nLightIntensity * material.Ks * pow(cosAlpha, material.n);
-		}
-		light = light->next;
-	}
-
-	Color color = material.col;
-	for (int i = 0; i < 3; i++) {
-		color.v[i] = color.v[i] * intensity + sIntensity;
-	}
-	return color;
-	/* your code goes here */
+	Color fColor;	
+	Color ambientColor;	
+	Color diffuseColor;
+	Color specularColor=white;
+	// ShadowRay 
+	Ray ShadowRay;
+	Color amb;
 	
-	// return material.col; /* replace with your code */
+	//compute intersection point
+	Point intersection;
+	TIMES(intersection,ray->direction,t);
+	PLUS(intersection,intersection,ray->origin);
+
+	//computer light ray
+	Vector lightRay;
+	MINUS(lightRay,lights->position,intersection);
+	// set the direction to shoot the direction, origin
+	ShadowRay.direction = lightRay;
+	ShadowRay.origin = intersection;
+	//get length of ray 
+	double lengthLight = Normalize(&lightRay);
+	
+	int booleanS = ShadowProbe(&ShadowRay, lengthLight); 
+		
+	//ambient color calculation
+	TIMES(ambientColor,material.col,material.Ka);
+	//intensity of diffuse light
+	double intensity=DOT(normal,lightRay);
+	if(intensity<0){
+		intensity=0;
+	}
+	TIMES(diffuseColor,material.col,intensity);
+	TIMES(diffuseColor,diffuseColor,material.Kd);
+
+
+	//specular
+	Vector reflected=reflect(lightRay,normal);
+	double specDOT=DOT(ray->direction,reflected);
+	double specPOW;
+	if(specDOT<0){
+		specPOW=0;
+	}else{
+		specPOW=pow(specDOT,material.n);
+	}
+
+
+
+	TIMES(specularColor,specularColor,specPOW);
+	TIMES(specularColor,specularColor,material.Ks);
+
+	
+	//add them all together
+	PLUS(fColor,ambientColor,diffuseColor);
+	PLUS(fColor,fColor,specularColor);
+	amb = ambientColor;
+	//if shadow hit, return ambient component only
+	//generates the shadow
+	if(booleanS)
+	{
+		fColor = amb;
+	}
+	
+	return fColor;
 }
 
 
