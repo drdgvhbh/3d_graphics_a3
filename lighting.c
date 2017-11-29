@@ -115,7 +115,7 @@ Texture(Material *material, Point position)
 static Color
 ComputeRadiance(Ray *ray, double t, Vector normal, Material material, double IOR) {
 	//printf("%d\n", ray->generation);
-	if (ray->generation > 11) {
+	if (ray->generation > 5) {
 		return black;
 	}
 	(void) Normalize(&normal);
