@@ -1,3 +1,8 @@
+/*
+Ryan Lee - 214240196 - drd
+Cheng Shao - 214615934 - shaoc2
+ */
+
 #include "art.h"
 
 #define	HIT		1

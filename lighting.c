@@ -9,10 +9,10 @@
 #include <stdlib.h>
 #include <math.h>
 #include "artInternal.h"
+#include <stdio.h>
 
 #define CHECKERBOARD    1
 #define ZONE_PLATE      2
-
 
 #define MAX_RECURSION	10
 
@@ -21,6 +21,12 @@ extern Vector	ReflectRay(Vector, Vector);
 extern int	IntersectScene(Ray *, double *, Vector *, Material *);
 extern int	ShadowProbe(Ray *, double);
 extern int TransmitRay(Vector, Vector, double, double, Vector *);
+
+Color GetRadiance(Ray *ray, double);
+Color GetReflectedRadiance(Ray *ray, double IOR);
+Color GetTransmittedRadiance(Ray *ray, double IOR);
+static Color ComputeReflectedRadiance(Ray *ray, double t, Vector normal, Material material, double IOR);
+static Color ComputeTransmittedRadiance(Ray *ray, double t, Vector normal, Material material, double IOR);
 
 typedef struct LightNode {
 	Point position;
@@ -82,7 +88,7 @@ art_Background(Color color)
 /* for A4 */
 static Color
 Texture(Material *material, Point position)
-{               
+{
 	int funnySum;
 	double EPSILON= 0.0001;
 	double contribution;
@@ -90,7 +96,7 @@ Texture(Material *material, Point position)
 
 	switch(material->texture) {
 
-	case CHECKERBOARD: 
+	case CHECKERBOARD:
 		funnySum= floor(position.v[0]+EPSILON)
 			+ floor(position.v[1]+EPSILON)
 			+ floor(position.v[2]+EPSILON);
@@ -100,35 +106,130 @@ Texture(Material *material, Point position)
 	case ZONE_PLATE:
 		contribution= 0.5*cos(DOT(position, position))+0.5;
 		TIMES(result, material->col, contribution);
-		return result;  
-	default:                
+		return result;
+	default:
 	return material->col;
-	}       
-}       
+	}
+}
 
 /*
  * a simple shader
  */
 static Color
-ComputeRadiance(Ray *ray, double t, Vector normal, Material material)
-{
+ComputeRadiance(Ray *ray, double t, Vector normal, Material material, double IOR) {
+	//printf("%d\n", ray->generation);
+	if (ray->generation > MAX_RECURSION) {
+		return black;
+	}
 	(void) Normalize(&normal);
+
+	LightNode* light = lights;
+
+	Point intersection;
+	TIMES(intersection, ray->direction, t);
+	PLUS(intersection, intersection, ray->origin);
+
+
+	Color diffuseColor = black;
+	Color specularColor = black;
+	Color reflectAndRefractedColor = black;
+
+	Material materialColor = material;
+	Color textureColor = Texture(&materialColor, intersection);
+	int newGeneration = ray->generation + 1;
+
+	double intensity = 0;
+	while (light != NULL) {
+
+
+		Vector lightRay;
+		MINUS(lightRay, light->position, intersection);
+		double lightLength = Normalize(&lightRay);
+
+		Ray ShadowRay;
+		ShadowRay.direction = lightRay;
+		ShadowRay.origin = intersection;
+
+		intensity += light->intensity / pow(lightLength - light->radius, 2);
+
+		int isInShadow = ShadowProbe(&ShadowRay, lightLength);
+		if (!isInShadow) {
+			Color currentDiffuse = black;
+			TIMES(currentDiffuse, textureColor, material.Kd);
+			if (DOT(normal, lightRay) > 0) {
+				TIMES(
+					currentDiffuse,
+					currentDiffuse,
+					DOT(normal, lightRay) * intensity);
+			}
+			PLUS(diffuseColor, diffuseColor, currentDiffuse);
+
+			Vector reflected = ReflectRay(lightRay, normal);
+			double specDOT = DOT(reflected, ray->direction);
+			double specPOW = 0;
+			if (specDOT < 0) {
+				specPOW = 0;
+			} else {
+				specPOW = pow(specDOT, material.n);
+			}
+			Color currentSpec = black;
+			TIMES(currentSpec, white, specPOW * intensity * material.Ks);
+			PLUS(specularColor, specularColor, currentSpec);
+		}
+
+		light = light->next;
+	}
+
+	Color ambientColor;
+	TIMES(ambientColor, textureColor, material.Ka * intensity);
+
+	if (material.Kr > 0) {
+		/// Comment this section out and test3 works perfectly, but it shouldnt
+		/// matter since this never runs in test3. C compiler being idiotic.
+		Vector reflected =  ReflectRay(ray->direction, normal);
+		Ray reflectedRay = {
+			intersection,
+			reflected,
+			newGeneration
+		};
+		Color currentReflected = GetReflectedRadiance(&reflectedRay, material.index);
+		TIMES(currentReflected, currentReflected, material.Kr);
+		PLUS(reflectAndRefractedColor, reflectAndRefractedColor, currentReflected);
+	}
+
+	if (material.Kt > 0) {
+		Vector transmitDir;
+		TransmitRay(ray->direction, normal, IOR, material.index, &transmitDir);
+		Ray transmittedRay = {
+			intersection,
+			transmitDir,
+			newGeneration
+		};
+		Color currentTransmitted = GetTransmittedRadiance(&transmittedRay, material.index);
+		TIMES(currentTransmitted, currentTransmitted, material.Kt);
+		PLUS(reflectAndRefractedColor, reflectAndRefractedColor, currentTransmitted);
+	}
+
+	Color fColor = black;
+	PLUS(fColor, ambientColor, diffuseColor);
+	PLUS(fColor, fColor, specularColor);
+	PLUS(fColor, fColor, reflectAndRefractedColor);
 	
-	/* your code goes here */
-	
-	return material.col; /* replace with your code */
+	return fColor;
 }
 
 
+
+
 Color
-GetRadiance(Ray *ray)
+GetRadiance(Ray *ray, double IOR)
 {
 	double t;
 	Vector normal;
 	Material material;
 
 	if(IntersectScene(ray, &t, &normal, &material) == HIT)
-		return ComputeRadiance(ray, t, normal, material);
+		return ComputeRadiance(ray, t, normal, material, IOR);
 	else	return background;
 }
 
@@ -162,4 +263,200 @@ void FinishLighting()
 
 		free((void *) node);
 	}
+}
+
+Color GetReflectedRadiance(Ray *ray, double IOR) {
+	double t;
+	Vector normal;
+	Material material;
+
+	if(IntersectScene(ray, &t, &normal, &material) == HIT)
+		return ComputeReflectedRadiance(ray, t, normal, material, IOR);
+	else	return background;
+}
+
+Color GetTransmittedRadiance(Ray *ray, double IOR) {
+	double t;
+	Vector normal;
+	Material material;
+
+	if(IntersectScene(ray, &t, &normal, &material) == HIT)
+		return ComputeTransmittedRadiance(ray, t, normal, material, IOR);
+	else	return background;
+}
+
+static Color
+ComputeReflectedRadiance(Ray *ray, double t, Vector normal, Material material, double IOR) {
+	if (ray->generation > MAX_RECURSION) {
+		return black;
+	}
+	(void) Normalize(&normal);
+
+	LightNode* light = lights;
+
+	Point intersection;
+	TIMES(intersection, ray->direction, t);
+	PLUS(intersection, intersection, ray->origin);
+
+
+	Color diffuseColor = black;
+	Color specularColor = black;
+	Color reflectAndRefractedColor = black;
+
+	Material materialColor = material;
+	Color textureColor = Texture(&materialColor, intersection);
+	int newGeneration = ray->generation + 1;
+
+	double intensity = 0;
+	while (light != NULL) {
+
+
+		Vector lightRay;
+		MINUS(lightRay, light->position, intersection);
+		double lightLength = Normalize(&lightRay);
+
+		Ray ShadowRay;
+		ShadowRay.direction = lightRay;
+		ShadowRay.origin = intersection;
+
+		intensity += light->intensity / pow(lightLength - light->radius, 2);
+
+		int isInShadow = ShadowProbe(&ShadowRay, lightLength);
+		if (!isInShadow) {
+			Color currentDiffuse = black;
+			TIMES(currentDiffuse, textureColor, material.Kd);
+			if (DOT(normal, lightRay) > 0) {
+				TIMES(
+					currentDiffuse,
+					currentDiffuse,
+					DOT(normal, lightRay) * intensity);
+			}
+			PLUS(diffuseColor, diffuseColor, currentDiffuse);
+
+			Vector reflected = ReflectRay(lightRay, normal);
+			double specDOT = DOT(reflected, ray->direction);
+			double specPOW = 0;
+			if (specDOT < 0) {
+				specPOW = 0;
+			} else {
+				specPOW = pow(specDOT, material.n);
+			}
+			Color currentSpec = black;
+			TIMES(currentSpec, white, specPOW * intensity * material.Ks);
+			PLUS(specularColor, specularColor, currentSpec);
+		}
+
+		light = light->next;
+	}
+
+	Color ambientColor;
+	TIMES(ambientColor, textureColor, material.Ka * intensity);
+
+	if (material.Kr > 0) {
+		Vector reflected =  ReflectRay(ray->direction, normal);
+		Ray reflectedRay = {
+			intersection,
+			reflected,
+			newGeneration
+		};
+		Color currentReflected = GetRadiance(&reflectedRay, material.index);
+		TIMES(currentReflected, currentReflected, material.Kr);
+		PLUS(reflectAndRefractedColor, reflectAndRefractedColor, currentReflected);
+	}
+
+	Color fColor = black;
+	PLUS(fColor, ambientColor, diffuseColor);
+	PLUS(fColor, fColor, specularColor);
+	PLUS(fColor, fColor, reflectAndRefractedColor);
+	
+	return fColor;
+}
+
+static Color
+ComputeTransmittedRadiance(Ray *ray, double t, Vector normal, Material material, double IOR) {
+		//printf("%d\n", ray->generation);
+	if (ray->generation > MAX_RECURSION) {
+		return black;
+	}
+	(void) Normalize(&normal);
+
+	LightNode* light = lights;
+
+	Point intersection;
+	TIMES(intersection, ray->direction, t);
+	PLUS(intersection, intersection, ray->origin);
+
+
+	Color diffuseColor = black;
+	Color specularColor = black;
+	Color reflectAndRefractedColor = black;
+
+	Material materialColor = material;
+	Color textureColor = Texture(&materialColor, intersection);
+	int newGeneration = ray->generation + 1;
+
+	double intensity = 0;
+	while (light != NULL) {
+
+
+		Vector lightRay;
+		MINUS(lightRay, light->position, intersection);
+		double lightLength = Normalize(&lightRay);
+
+		Ray ShadowRay;
+		ShadowRay.direction = lightRay;
+		ShadowRay.origin = intersection;
+
+		intensity += light->intensity / pow(lightLength - light->radius, 2);
+
+		int isInShadow = ShadowProbe(&ShadowRay, lightLength);
+		if (!isInShadow) {
+			Color currentDiffuse = black;
+			TIMES(currentDiffuse, textureColor, material.Kd);
+			if (DOT(normal, lightRay) > 0) {
+				TIMES(
+					currentDiffuse,
+					currentDiffuse,
+					DOT(normal, lightRay) * intensity);
+			}
+			PLUS(diffuseColor, diffuseColor, currentDiffuse);
+
+			Vector reflected = ReflectRay(lightRay, normal);
+			double specDOT = DOT(reflected, ray->direction);
+			double specPOW = 0;
+			if (specDOT < 0) {
+				specPOW = 0;
+			} else {
+				specPOW = pow(specDOT, material.n);
+			}
+			Color currentSpec = black;
+			TIMES(currentSpec, white, specPOW * intensity * material.Ks);
+			PLUS(specularColor, specularColor, currentSpec);
+		}
+
+		light = light->next;
+	}
+
+	Color ambientColor;
+	TIMES(ambientColor, textureColor, material.Ka * intensity);
+
+	if (material.Kt > 0) {
+		Vector transmitDir;
+		TransmitRay(ray->direction, normal, IOR, material.index, &transmitDir);
+		Ray transmittedRay = {
+			intersection,
+			transmitDir,
+			newGeneration
+		};
+		Color currentTransmitted = GetRadiance(&transmittedRay, material.index);
+		TIMES(currentTransmitted, currentTransmitted, material.Kt);
+		PLUS(reflectAndRefractedColor, reflectAndRefractedColor, currentTransmitted);
+	}
+
+	Color fColor = black;
+	PLUS(fColor, ambientColor, diffuseColor);
+	PLUS(fColor, fColor, specularColor);
+	PLUS(fColor, fColor, reflectAndRefractedColor);
+	
+	return fColor;
 }

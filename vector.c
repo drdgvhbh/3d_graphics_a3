@@ -1,12 +1,13 @@
 /*
- * Misc. vector/affine functions (including reflection/refraction)
- *
- *	John Amanatides, Oct 2017
+Ryan Lee - 214240196 - drd
+Cheng Shao - 214615934 - shaoc2
  */
 
 
 #include <math.h>
 #include "artInternal.h"
+#include <stdio.h>
+
 
 
 /*
@@ -195,4 +196,8 @@ TransmitRay(Vector incident, Vector normal, double index1, double index2, Vector
 	else
 		PLUS(*transmit, vtmp, *transmit)
 	return 1;
+}
+
+double ToRadians(double degrees) {
+	return (degrees * 3.14159265359 / 180.0);
 }
