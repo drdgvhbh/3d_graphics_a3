@@ -39,8 +39,7 @@ art_Camera(Point lookFrom, Point lookAt, Vector lookUp)
 
 /* for A4 */
 char *
-art_Lens(double focus, double radius)
-{
+art_Lens(double focus, double radius) {
 	if(focus <= 0.0 || radius < 0.0)
 		return "art_Lens: domain error";
 	focusDistance= focus;

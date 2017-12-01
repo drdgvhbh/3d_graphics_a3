@@ -1,6 +1,7 @@
 /*
-Ryan Lee - 214240196 - drd
-Cheng Shao - 214615934 - shaoc2
+ * implement ray/cone intersection routine
+ *
+ *	John Amanatides, Oct 2017
  */
 
 #include <math.h>
@@ -37,108 +38,105 @@ static double IntersectPlane(Ray *ray, Plane plane)
  * (ie my intersection point is further than something else already hit).
  */
 
-int IntersectCone(Ray* ray, double* t, Vector* normal) {
-	/* your code goes here */
-
-	int missTracker1 =0;
-	int missTracker2 =0;
-
-	//flat bottom calculations
-	double myT1;
-	//find T with y=1
-	myT1 = (1.0-ray->origin.v[1])/ray->direction.v[1];
-
-	double x, z;
-	//sub in T, find x, and z
-	x = ray->origin.v[0]+myT1*ray->direction.v[0];
-	z = ray->origin.v[2]+myT1*ray->direction.v[2];
-
-	//is the intersection point outside the circle
-	if(pow(x, 2) + pow(z, 2) > 1.0) {
-		missTracker2 = 1; //missed
-	}
-
-
-	//cone calculations
-	double a =
-		+ (pow(ray->direction.v[0], 2))
-		- pow(ray->direction.v[1], 2)
-		+ pow(ray->direction.v[2], 2);
-	double b =
-		2 *
-		(
-			+ (ray->origin.v[0] * ray->direction.v[0])
-			- (ray->origin.v[1] * ray->direction.v[1])
-			+ ray->origin.v[2] * ray->direction.v[2]
-		);
-	double c =
-		+ (pow(ray->origin.v[0], 2))
-		- pow(ray->origin.v[1], 2)
-		+ pow(ray->origin.v[2], 2);
-
-	double d;
+int IntersectCone(ray, t, normal)
+	Ray *ray;
+	double *t;
+	Vector *normal;
+	
+{
+	Vector thirdElementNegative;
+	double thirdElement, secondElement, firstElement;
+	double a, b, c;
+	double d, myT;
 	double r1, r2;
 	double myT;
 
 	Point hit;
+	Point conePoint;
+	double yValueCone, xValueCone, zValueCone;
+	double xz;
+	
+	
+	
+	//--------------------------------------------------------------------------- 
+	// create new vectors
+	// give vectors a negative y value to correspond to equation
+   Vector newRD, newRO;
+   newRD = ray->direction; 
+   newRD.v[1] = ray->direction.v[1] * -1.0;
+   newRO = ray->origin;
+   newRO.v[1] = ray->origin.v[1] * -1.0;
+     
+     a= DOT(ray->direction, newRD);
+     b= 2.0*DOT(ray->origin, newRD );
+     c= DOT(ray->origin, newRO); 
 
-	d = pow(b, 2) -4.0 * a *c;
-	if (d <= 0.0) {
-		missTracker1 = 1;
-	}
-
-	if (b < 0.0) {
+	//----------------------------------------------------------------------------
+	d= b*b-4.0*a*c;
+	if(d <= 0.0)
+		return MISS;
+	//find roots
+	if(b < 0.0) {
 		r2= (-b+sqrt(d))/(2.0*a);
 		r1= c/(a*r2);
 	} else {
 		r1= (-b-sqrt(d))/(2.0*a);
 		r2= c/(a*r1);
 	}
-	if (r1 < EPSILON) {
-		if (r2 < EPSILON) {
-			missTracker1 = 1;
+
+// find smallest radius
+	if (r1 < r2)
+	{
+		myT = r1;
+	}
+	else if (r2 < r1)
+	{
+		myT = r2;
+	}
+
+	if(myT < EPSILON)
+	{
+		return MISS;
+	}
+		// find the y value of myT
+	TIMES(conePoint,ray->direction, myT);
+	PLUS(conePoint,conePoint, ray->origin);
+	xValueCone = conePoint.v[0];
+	yValueCone = conePoint.v[1];
+	zValueCone = conePoint.v[2];
+	xz = yValueCone + zValueCone;
+	
+	//if object in front of eye ahead of cone, or bottom section of cone
+	if(myT >= *t || yValueCone < 0.0){
+		return MISS;
+	}else if(yValueCone>1.0){
+		//if looking inside the cone from the top
+		if((ray->origin.v[1]>1) && ray->direction.v[1]<0){
+			//draw plane on top of cone
+			myT=-((ray->origin.v[1]-1)/ray->direction.v[1]);
+			TIMES(hit,  ray->direction, myT);
+			PLUS(hit, ray->origin, hit);
+			//keep plane restricted to a circle
+			if(pow(hit.v[0],2)+pow(hit.v[2],2)>1){
+				return MISS;
+			}else{
+				return HIT;
+			}
 		}
-		else {
-			myT= r1;
-		}
-	}
-	else {
-		myT= r2;
-	}
 
 
 
 
-	if(missTracker1&&missTracker2) {
-		return MISS;
-	} else if(missTracker2){
-		//do nothing
-	} else {
-		myT = myT1;
-		*t= myT;
-		normal->v[0]= 0.0;
-		normal->v[1]= 1.0;
-		normal->v[2]= 0.0;
-		return HIT;
-
-	}
-
-	if (myT >= *t) {
-		return MISS;
-	}
-	double y = ray->origin.v[1] + (myT) * ray->direction.v[1];
-	if (y > 1. || y < 0.) {
-		return MISS;
-	}
-
-
-
-	*t= myT;
-	Vector normalizedRayDir = ray->direction;
-	TIMES(hit, normalizedRayDir, myT);
+	}else{
+	//regular cone on the ouside intersection
+	
+	TIMES(hit,  ray->direction, myT);
 	PLUS(hit, ray->origin, hit);
-
+	*t= myT;
+	hit.v[1] = hit.v[1] * -1;
 	*normal= hit;
-
 	return HIT;
+	}
+	
+	
 }
